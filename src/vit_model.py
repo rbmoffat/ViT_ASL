@@ -7,7 +7,7 @@ class ASLVisionTransformer(nn.Module):
         super(ASLVisionTransformer, self).__init__()
         
         # Load pre-trained ViT-Base-Patch16-384 model
-        self.vit = ViTForImageClassification.from_pretrained('google/vit-base-patch16-384')
+        self.vit = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224')
         
         # Replace the classification head
         self.vit.classifier = nn.Linear(self.vit.config.hidden_size, num_classes)
