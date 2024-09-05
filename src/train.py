@@ -16,9 +16,9 @@ import vit_model  # Assuming this is your custom ViT model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Hyperparameters
-NUM_EPOCHS = 10
-BATCH_SIZE = 32
-LEARNING_RATE = 0.001
+NUM_EPOCHS = 5
+BATCH_SIZE = 64
+LEARNING_RATE = 0.003
 IMG_SIZE = 224
 NUM_CLASSES = 29 
 
@@ -36,13 +36,10 @@ class ASLDataset(Dataset):
             ToTensorV2(),
         ])
 
-        # Additional augmentations for training
+        # Simplified augmentations for quicker training
         self.train_transform = A.Compose([
-            A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
-            A.HueSaturationValue(hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5),
-            A.GaussianBlur(blur_limit=(3, 7), p=0.3),
-            A.GaussNoise(var_limit=(10.0, 50.0), p=0.3),
-            A.RandomShadow(p=0.3),
+            A.RandomBrightnessContrast(p=0.5),
+            A.HorizontalFlip(p=0.5),
             A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.1, rotate_limit=15, p=0.5),
         ])
 
@@ -118,6 +115,12 @@ if __name__ == "__main__":
     y = df.label.values
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.15, random_state=42)
 
+    # Use a smaller subset of data for quick training
+    X_train = X_train[:10000]  # Adjust this number based on your dataset size
+    y_train = y_train[:10000]
+    X_val = X_val[:1000]
+    y_val = y_val[:1000]
+
     # Create datasets and dataloaders
     train_dataset = ASLDataset(X_train, y_train, train=True)
     val_dataset = ASLDataset(X_val, y_val, train=False)
@@ -128,6 +131,7 @@ if __name__ == "__main__":
     model = vit_model.create_asl_vit_model().to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
 
     # Training loop
     train_losses, train_accs, val_losses, val_accs = [], [], [], []
@@ -135,6 +139,8 @@ if __name__ == "__main__":
         print(f"Epoch {epoch+1}/{NUM_EPOCHS}")
         train_loss, train_acc = train(model, train_loader, criterion, optimizer)
         val_loss, val_acc = validate(model, val_loader, criterion)
+        
+        scheduler.step(val_loss)  # Adjust learning rate based on validation loss
         
         train_losses.append(train_loss)
         train_accs.append(train_acc)
